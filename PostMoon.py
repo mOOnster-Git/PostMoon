@@ -19,7 +19,7 @@ except ImportError:
 class PostMoonApp:
     def __init__(self, root):
         self.root = root
-        self.VERSION = "v1.5.2" # Updated: Aggressive whitespace removal
+        self.VERSION = "v1.5.3" # Updated: Smart Error Handling for Typos
         self.root.title(f"PostMoon - AI Powered Rhymix Uploader {self.VERSION}")
         self.root.geometry("1200x900") # Increased size for better split view
 
@@ -722,6 +722,17 @@ class PostMoonApp:
             else:
                 messagebox.showerror("실패", f"전송 실패: {result.get('message', '알 수 없는 오류')}")
                 
+        except requests.exceptions.ConnectionError as e:
+            err_msg = str(e)
+            if "NameResolutionError" in err_msg or "getaddrinfo failed" in err_msg:
+                 messagebox.showerror("주소 오류", 
+                    "⛔ 사이트를 찾을 수 없습니다.\n\n"
+                    "입력하신 도메인 주소가 올바른지 확인해주세요.\n"
+                    "혹시 오타가 없는지(예: kuft vs kutf) 체크해보세요.\n\n"
+                    f"상세 오류: {err_msg}")
+            else:
+                 messagebox.showerror("연결 오류", f"서버 접속 실패: {err_msg}")
+
         except Exception as e:
             messagebox.showerror("오류", f"전송 중 오류 발생: {str(e)}")
         finally:
