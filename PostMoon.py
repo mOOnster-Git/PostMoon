@@ -19,7 +19,7 @@ except ImportError:
 class PostMoonApp:
     def __init__(self, root):
         self.root = root
-        self.VERSION = "v1.5.3" # Updated: Smart Error Handling for Typos
+        self.VERSION = "v1.5.4" # Updated: Enhanced 500 Error Debugging
         self.root.title(f"PostMoon - AI Powered Rhymix Uploader {self.VERSION}")
         self.root.geometry("1200x900") # Increased size for better split view
 
@@ -706,8 +706,31 @@ class PostMoonApp:
             print(f"Sending to {api_url} with mid={mid}, title={title}")
             
             response = requests.post(api_url, headers=headers, data=data, files=files_to_send)
+            
+            # Check for JSON error message even if status code is 4xx/5xx
+            try:
+                result = response.json()
+                if response.status_code >= 400:
+                    # It's an error response from our script
+                    error_msg = result.get('message', str(response.status_code))
+                    # Check for Rhymix specific errors
+                    if "Rhymix Init Failed" in error_msg:
+                        messagebox.showerror("서버 설정 오류", 
+                            f"⛔ 라이믹스(Rhymix) 초기화 실패\n\n"
+                            f"secure_api.php 파일이 라이믹스 경로를 찾지 못했습니다.\n"
+                            f"현재 PostMoon 폴더의 위치를 확인해주세요.\n\n"
+                            f"상세 오류: {error_msg}")
+                        return
+                    
+                    messagebox.showerror("서버 오류", f"서버에서 오류를 반환했습니다:\n{error_msg}")
+                    return
+            except ValueError:
+                # Not JSON, proceed to standard error handling
+                pass
+
             response.raise_for_status()
             
+            # result is already parsed above if successful, but do it again safely
             result = response.json()
             
             if result.get('success') or result.get('error') == 0:
