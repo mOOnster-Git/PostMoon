@@ -19,7 +19,7 @@ except ImportError:
 class PostMoonApp:
     def __init__(self, root):
         self.root = root
-        self.VERSION = "v1.5.4" # Updated: Enhanced 500 Error Debugging
+        self.VERSION = "v1.5.5" # Updated: Raw HTML Error Display
         self.root.title(f"PostMoon - AI Powered Rhymix Uploader {self.VERSION}")
         self.root.geometry("1200x900") # Increased size for better split view
 
@@ -725,8 +725,17 @@ class PostMoonApp:
                     messagebox.showerror("서버 오류", f"서버에서 오류를 반환했습니다:\n{error_msg}")
                     return
             except ValueError:
-                # Not JSON, proceed to standard error handling
-                pass
+                # Not JSON, this means PHP crashed hard and returned HTML
+                error_html = response.text[:500] # Show first 500 chars
+                # Clean up HTML tags for readability
+                error_text = re.sub('<[^<]+?>', '', error_html)
+                
+                messagebox.showerror("치명적 서버 오류", 
+                    f"⛔ 서버가 정상적인 응답(JSON)을 보내지 않았습니다.\n\n"
+                    f"서버 측 PHP 오류일 가능성이 높습니다.\n"
+                    f"아래 내용을 확인해주세요:\n\n"
+                    f"{error_text}...")
+                return
 
             response.raise_for_status()
             

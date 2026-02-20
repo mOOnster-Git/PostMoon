@@ -120,8 +120,20 @@ try {
 
 // --- 2. Authentication (Enhanced Security) ---
 
+if (!function_exists('getallheaders')) {
+    function getallheaders() {
+        $headers = [];
+        foreach ($_SERVER as $name => $value) {
+            if (substr($name, 0, 5) == 'HTTP_') {
+                $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+            }
+        }
+        return $headers;
+    }
+}
+
 $api_key = null;
-$headers = getallheaders(); // Apache specific, needs polyfill for Nginx if strictly needed, but $_SERVER works too.
+$headers = getallheaders();
 
 // Check X-Api-Key Header
 if (isset($headers['X-Api-Key'])) {
