@@ -9,7 +9,24 @@
  */
 
 define('__ZBXE__', true);
-require_once './config/config.inc.php';
+$possible_configs = [
+    __DIR__ . '/../config/config.inc.php',
+    __DIR__ . '/config/config.inc.php',
+    $_SERVER['DOCUMENT_ROOT'] . '/config/config.inc.php',
+    $_SERVER['DOCUMENT_ROOT'] . '/rhymix/config/config.inc.php'
+];
+$config_path = null;
+foreach ($possible_configs as $path) {
+    if (file_exists($path)) {
+        $config_path = $path;
+        break;
+    }
+}
+if (!$config_path) {
+    header('HTTP/1.1 500 Internal Server Error');
+    die('Rhymix config.inc.php not found. Please place PostMoon folder inside Rhymix root.');
+}
+require_once $config_path;
 
 // Debug Logging
 function debug_log($msg) {
@@ -24,7 +41,7 @@ $oContext->init();
 $logged_info = Context::get('logged_info');
 if (!$logged_info || $logged_info->is_admin != 'Y') {
     header('HTTP/1.1 403 Forbidden');
-    die('<h1>Access Denied</h1><p>관리자만 접근할 수 있습니다. <a href="./index.php?act=dispMemberLoginForm">로그인</a></p>');
+    die('<h1>Access Denied</h1><p>관리자만 접근할 수 있습니다. <a href="../index.php?act=dispMemberLoginForm">로그인</a></p>');
 }
 
 $oDB = DB::getInstance();
@@ -272,7 +289,7 @@ debug_log("Fetched Keys Count: " . count($keys));
         </table>
         
         <div class="mt-4 text-end">
-            <a href="./" class="btn btn-secondary">메인으로 돌아가기</a>
+            <a href="../" class="btn btn-secondary">메인으로 돌아가기</a>
         </div>
     </div>
 </body>
