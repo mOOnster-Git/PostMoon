@@ -90,6 +90,7 @@ debug_log("Script Started");
 $possible_paths = [
     __DIR__ . '/common/autoload.php',
     __DIR__ . '/../common/autoload.php',
+    __DIR__ . '/../../common/autoload.php',
     $_SERVER['DOCUMENT_ROOT'] . '/common/autoload.php',
     $_SERVER['DOCUMENT_ROOT'] . '/rhymix/common/autoload.php'
 ];
@@ -108,8 +109,14 @@ if (!$autoload_path) {
     exit;
 }
 
-require_once $autoload_path;
-Context::init();
+try {
+    require_once $autoload_path;
+    Context::init();
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['error' => -1, 'message' => 'Rhymix Init Failed: ' . $e->getMessage()]);
+    exit;
+}
 
 // --- 2. Authentication (Enhanced Security) ---
 

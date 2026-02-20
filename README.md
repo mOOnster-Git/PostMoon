@@ -54,7 +54,9 @@ PC에서 프로그램을 실행하고 서버 정보를 등록합니다.
     *   프로필 이름 입력 (예: "내 홈페이지").
 
 3.  **정보 입력**:
-    *   **Rhymix URL**: `secure_api.php` 파일의 전체 주소 (예: `https://mysite.com/PostMoon/secure_api.php`)
+    *   **Rhymix URL**: `secure_api.php` 파일의 전체 주소.
+        *   기본값: `https://mysite.com/PostMoon/secure_api.php`
+        *   **주의**: 폴더명을 `mOOnster` 등으로 변경했다면 URL도 반드시 변경해야 합니다.
     *   **Rhymix API Key**: 1단계에서 발급받은 키 (`rx_live_...`)
     *   **게시판 ID (mid)**: 글을 올릴 게시판의 모듈 ID (예: `notice`, `freeboard`)
     *   **Gemini API Key**: Google AI Studio에서 발급받은 키.
