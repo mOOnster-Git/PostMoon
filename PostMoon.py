@@ -24,6 +24,12 @@ class PostMoonApp:
 
         self.chat_session = None # To store AI chat history
 
+        # --- Footer ---
+        footer_frame = tk.Frame(root, bg="#f0f0f0", padx=10, pady=5)
+        footer_frame.pack(side="bottom", fill="x")
+        
+        tk.Label(footer_frame, text=f"PostMoon {self.VERSION} | 제작자 : mOOnster", fg="gray", font=("Arial", 9), bg="#f0f0f0").pack(side="left")
+
         # --- Main Layout (Split View) ---
         # Use PanedWindow for adjustable split
         self.paned_window = tk.PanedWindow(root, orient=tk.HORIZONTAL, sashwidth=5, bg="#dcdcdc")
@@ -35,9 +41,6 @@ class PostMoonApp:
 
         # Left Header
         tk.Label(self.left_frame, text="📝 원문 입력 (Raw Input)", font=("Arial", 14, "bold"), bg="#f0f0f0").pack(side="top", anchor="w", pady=(0, 10))
-
-        # Version Label (Packed at bottom first to ensure visibility)
-        tk.Label(self.left_frame, text=f"Version: {self.VERSION}", fg="gray", font=("Arial", 8), bg="#f0f0f0").pack(side="bottom", anchor="w", pady=5)
 
         # AI Control Frame (Style Selection + Button)
         ai_control_frame = tk.Frame(self.left_frame, bg="#f0f0f0")
