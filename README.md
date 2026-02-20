@@ -24,15 +24,18 @@
 
 ## 🚀 설치 및 설정 가이드 (Setup Guide)
 
-### 1단계: 서버 설정 (Server Setup)
-라이믹스(Rhymix)가 설치된 웹 서버에 연동 파일을 업로드해야 합니다.
+### 1단계: 서버 설정 (폴더 통째 업로드)
+라이믹스(Rhymix)가 설치된 웹 서버에 **PostMoon 폴더 전체**를 업로드합니다.
 
-1.  **파일 업로드**:
-    *   FTP 프로그램(FileZilla 등)을 사용하여 `secure_api.php`와 `admin_api_keys.php` 파일을 라이믹스 설치 경로(최상위 폴더, `index.php`가 있는 곳)에 업로드합니다.
-    *   *보안 권장사항: 가능하다면 `secure_api.php` 파일명을 `my_secret_bridge.php` 처럼 변경하여 사용하는 것도 좋습니다.*
+1.  **폴더 업로드**:
+    *   FTP/SFTP로 Rhymix 설치 경로 최상위( `index.php` 있는 위치 )에 **PostMoon 폴더**를 그대로 업로드합니다.
+    *   업로드가 끝나면 다음 경로로 접근할 수 있습니다:
+        - 관리자 키 발급 페이지: `https://내도메인/PostMoon/admin_api_keys.php`
+        - API 엔드포인트: `https://내도메인/PostMoon/secure_api.php`
+    *   *보안 권장사항: 필요 시 `secure_api.php` 파일명을 난수화해 사용하거나 폴더명을 변경해 URL 추측을 어렵게 만드는 것도 좋습니다.*
 
 2.  **API 키 발급**:
-    *   웹 브라우저에서 `http://내도메인/admin_api_keys.php` 주소로 접속합니다.
+    *   웹 브라우저에서 `https://내도메인/PostMoon/admin_api_keys.php` 주소로 접속합니다.
     *   **관리자 계정**으로 로그인되어 있어야 합니다. (로그인이 안 되어 있으면 접근 거부됨)
     *   최초 접속 시 `rx_api_keys` 데이터베이스 테이블이 **자동으로 생성**됩니다.
     *   **[키 생성]** 섹션에서 API를 사용할 회원 아이디를 입력하고 생성 버튼을 누릅니다.
@@ -51,7 +54,7 @@ PC에서 프로그램을 실행하고 서버 정보를 등록합니다.
     *   프로필 이름 입력 (예: "내 홈페이지").
 
 3.  **정보 입력**:
-    *   **Rhymix URL**: `secure_api.php` 파일의 전체 주소 (예: `https://mysite.com/secure_api.php`)
+    *   **Rhymix URL**: `secure_api.php` 파일의 전체 주소 (예: `https://mysite.com/PostMoon/secure_api.php`)
     *   **Rhymix API Key**: 1단계에서 발급받은 키 (`rx_live_...`)
     *   **게시판 ID (mid)**: 글을 올릴 게시판의 모듈 ID (예: `notice`, `freeboard`)
     *   **Gemini API Key**: Google AI Studio에서 발급받은 키.
@@ -82,6 +85,9 @@ API 키는 `secure_api.php`가 내부적으로 관리하는 별도의 데이터�
 
 **Q. `admin_api_keys.php`는 계속 놔둬도 되나요?**
 A. 관리자만 접속할 수 있도록 되어 있지만, 보안을 위해 키 발급이 끝나면 **서버에서 삭제**하거나 **파일 이름을 변경**해 두는 것을 권장합니다.
+
+**Q. 클라이언트 실행 파일을 새 버전으로 다시 만들어야 하나요?**
+A. **아니요.** 서버 측 폴더/파일 경로만 변경되었기 때문에, 클라이언트 프로그램에서는 **API URL을 새 경로(예: `/PostMoon/secure_api.php`)로 변경**해 사용하면 됩니다. 별도의 실행 파일 재빌드는 필요하지 않습니다.
 
 ## ⚠️ 보안 주의사항
 
