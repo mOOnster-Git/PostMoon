@@ -171,6 +171,11 @@ class PostMoonApp:
         self.file_label = tk.Label(file_frame, text="선택된 파일 없음", fg="gray")
         self.file_label.pack(side="left", padx=10)
 
+        # --- Update Check Button ---
+        update_btn = tk.Button(file_frame, text="🔄 업데이트 확인", command=self.check_for_updates_thread, 
+                               bg="#20c997", fg="white", font=("Arial", 9, "bold"))
+        update_btn.pack(side="right")
+
         # --- Action Section ---
         self.send_btn = tk.Button(self.right_frame, text="📤 게시글 Rhymix로 전송", command=self.upload_to_rhymix_thread, 
                                   bg="#007bff", fg="white", font=("Arial", 12, "bold"), height=2)
@@ -435,6 +440,34 @@ class PostMoonApp:
 
     def process_with_ai_thread(self):
         threading.Thread(target=self.process_with_ai, daemon=True).start()
+
+    def check_for_updates_thread(self):
+        threading.Thread(target=self.check_for_updates, daemon=True).start()
+
+    def check_for_updates(self):
+        try:
+            repo_owner = "mOOnster-Git"
+            repo_name = "PostMoon"
+            api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+            
+            response = requests.get(api_url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                latest_version = data.get("tag_name", "").strip()
+                
+                # Simple string comparison (assumes vX.Y.Z format)
+                # Remove 'v' prefix for comparison if needed, but here just direct string compare
+                current = self.VERSION
+                
+                if latest_version and latest_version != current:
+                    if messagebox.askyesno("업데이트 확인", f"새로운 버전이 있습니다!\n현재 버전: {current}\n최신 버전: {latest_version}\n\n다운로드 페이지로 이동하시겠습니까?"):
+                        webbrowser.open(data.get("html_url", "https://github.com/mOOnster-Git/PostMoon/releases"))
+                else:
+                    messagebox.showinfo("최신 버전", f"현재 최신 버전을 사용 중입니다.\n({current})")
+            else:
+                messagebox.showerror("오류", "버전 정보를 가져올 수 없습니다.")
+        except Exception as e:
+            messagebox.showerror("오류", f"업데이트 확인 중 오류 발생: {e}")
 
     def process_with_ai(self):
         if not HAS_GENAI:
