@@ -2,7 +2,7 @@
 /**
  * PostMoon Rhymix API Bridge (Open Source Version)
  * 
- * @version 1.5.0
+ * @version 1.5.1
  * @author PostMoon Project
  * @description Provides secure API endpoints for posting content to Rhymix/XE
  */
