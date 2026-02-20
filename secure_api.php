@@ -2,7 +2,7 @@
 /**
  * PostMoon Rhymix API Bridge (Open Source Version)
  * 
- * @version 1.5.1
+ * @version 1.5.7
  * @author PostMoon Project
  * @description Provides secure API endpoints for posting content to Rhymix/XE
  */
@@ -112,6 +112,8 @@ if (!$autoload_path) {
 try {
     require_once $autoload_path;
     Context::init();
+    // Rhymix가 HTML 에러 페이지를 보여주지 않도록 설정 (API 모드)
+    Context::setResponseMethod('JSON');
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['error' => -1, 'message' => 'Rhymix Init Failed: ' . $e->getMessage()]);

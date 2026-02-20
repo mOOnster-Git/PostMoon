@@ -19,7 +19,7 @@ except ImportError:
 class PostMoonApp:
     def __init__(self, root):
         self.root = root
-        self.VERSION = "v1.5.6" # Updated: Smart 404/403 Diagnosis
+        self.VERSION = "v1.5.7" # Updated: Forced JSON Mode
         self.root.title(f"PostMoon - AI Powered Rhymix Uploader {self.VERSION}")
         self.root.geometry("1200x900") # Increased size for better split view
 
