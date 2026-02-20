@@ -19,7 +19,7 @@ except ImportError:
 class PostMoonApp:
     def __init__(self, root):
         self.root = root
-        self.VERSION = "v1.5.5" # Updated: Raw HTML Error Display
+        self.VERSION = "v1.5.6" # Updated: Smart 404/403 Diagnosis
         self.root.title(f"PostMoon - AI Powered Rhymix Uploader {self.VERSION}")
         self.root.geometry("1200x900") # Increased size for better split view
 
@@ -725,16 +725,35 @@ class PostMoonApp:
                     messagebox.showerror("서버 오류", f"서버에서 오류를 반환했습니다:\n{error_msg}")
                     return
             except ValueError:
-                # Not JSON, this means PHP crashed hard and returned HTML
+                # Not JSON, this means PHP crashed hard or Server returned HTML error page
+                status_code = response.status_code
                 error_html = response.text[:500] # Show first 500 chars
-                # Clean up HTML tags for readability
-                error_text = re.sub('<[^<]+?>', '', error_html)
-                
-                messagebox.showerror("치명적 서버 오류", 
-                    f"⛔ 서버가 정상적인 응답(JSON)을 보내지 않았습니다.\n\n"
-                    f"서버 측 PHP 오류일 가능성이 높습니다.\n"
-                    f"아래 내용을 확인해주세요:\n\n"
-                    f"{error_text}...")
+                error_text = re.sub('<[^<]+?>', '', error_html).strip() # Clean tags
+
+                # 1. Check for 404 Not Found (File missing)
+                if status_code == 404:
+                     messagebox.showerror("주소 오류 (404)", 
+                        "⛔ secure_api.php 파일을 찾을 수 없습니다.\n\n"
+                        "1. 'PostMoon' 폴더를 서버(FTP) 최상위(index.php 있는 곳)에 업로드하셨나요?\n"
+                        "2. 폴더명 대소문자(PostMoon)가 정확한가요?\n"
+                        "3. 웹 브라우저 주소창에 아래 주소를 입력해서 접속이 되는지 확인해보세요.\n\n"
+                        f"확인할 주소: {api_url}")
+                     return
+
+                # 2. Check for 403 Forbidden (Permissions)
+                if status_code == 403:
+                     messagebox.showerror("권한 오류 (403)", 
+                        "⛔ 파일에 접근할 권한이 없습니다.\n\n"
+                        "FTP 프로그램에서 secure_api.php 파일 권한을 644 또는 755로 변경해주세요.\n"
+                        "또는 방화벽(Web Firewall)이 차단했을 수 있습니다.")
+                     return
+
+                # 3. Generic HTML Error (500 or Soft 404)
+                messagebox.showerror("서버 응답 오류", 
+                    f"⛔ 서버가 JSON 대신 HTML 페이지를 반환했습니다 (Code: {status_code}).\n\n"
+                    f"파일 주소가 잘못되었거나(Soft 404), 서버 설정 문제입니다.\n"
+                    f"브라우저에서 접속했을 때 정상적으로 나오는지 확인해주세요.\n\n"
+                    f"응답 내용 요약: {error_text[:200]}...")
                 return
 
             response.raise_for_status()
