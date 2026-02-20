@@ -6,6 +6,7 @@ import json
 import threading
 import tempfile
 import webbrowser
+import re
 from urllib.parse import urlparse
 
 # Try to import Google Generative AI library
@@ -18,7 +19,7 @@ except ImportError:
 class PostMoonApp:
     def __init__(self, root):
         self.root = root
-        self.VERSION = "v1.5.1" # Updated for Folder Upload Support & Bug Fixes
+        self.VERSION = "v1.5.2" # Updated: Aggressive whitespace removal
         self.root.title(f"PostMoon - AI Powered Rhymix Uploader {self.VERSION}")
         self.root.geometry("1200x900") # Increased size for better split view
 
@@ -649,8 +650,8 @@ class PostMoonApp:
 
     def upload_to_rhymix(self):
         # 1. Get Inputs
-        # Remove ALL spaces from URL to prevent copy-paste errors
-        api_url = self.api_url_entry.get().strip().replace(" ", "")
+        # Aggressively remove ALL whitespace characters (tabs, newlines, NBSP, etc.)
+        api_url = re.sub(r'\s+', '', self.api_url_entry.get())
         api_key = self.api_key_entry.get().strip()
         mid = self.mid_entry.get().strip()
         title = self.title_entry.get().strip()
