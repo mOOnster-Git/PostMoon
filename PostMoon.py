@@ -18,7 +18,7 @@ except ImportError:
 class PostMoonApp:
     def __init__(self, root):
         self.root = root
-        self.VERSION = "v1.5.0" # Updated for Settings Toggle & Clear Input
+        self.VERSION = "v1.5.1" # Updated for Folder Upload Support & Bug Fixes
         self.root.title(f"PostMoon - AI Powered Rhymix Uploader {self.VERSION}")
         self.root.geometry("1200x900") # Increased size for better split view
 
@@ -649,7 +649,8 @@ class PostMoonApp:
 
     def upload_to_rhymix(self):
         # 1. Get Inputs
-        api_url = self.api_url_entry.get().strip()
+        # Remove ALL spaces from URL to prevent copy-paste errors
+        api_url = self.api_url_entry.get().strip().replace(" ", "")
         api_key = self.api_key_entry.get().strip()
         mid = self.mid_entry.get().strip()
         title = self.title_entry.get().strip()
