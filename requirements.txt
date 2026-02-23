@@ -1,0 +1,5 @@
+requests>=2.25.0
+google-generativeai>=0.3.0
+customtkinter>=5.2.0
+packaging
+pillow

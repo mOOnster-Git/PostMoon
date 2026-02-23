@@ -1,0 +1,23 @@
+# User configuration
+config.json
+api_config.php
+
+# Logs
+debug_log.txt
+admin_debug_log.txt
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Executables
+*.exe
+dist/
+build/
+*.spec
