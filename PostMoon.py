@@ -868,6 +868,12 @@ class PostMoonApp:
         if not HAS_GENAI or not self.gemini_key_entry.get().strip():
             return messagebox.showwarning("설정 필요", "팝업 재수정은 Gemini API Key가 필요합니다.")
 
+        # 기존 팝업 버튼의 실제 링크 URL 보존 (#이 아닌 실제 URL만 추출)
+        preserved_url = None
+        url_match = re.search(r"<a\s[^>]*href=['\"]([^'\"#][^'\"]*)['\"]", current_popup)
+        if url_match:
+            preserved_url = url_match.group(1)
+
         self.popup_ai_refine_btn.configure(text="수정 중...", state="disabled")
         try:
             genai.configure(api_key=self.gemini_key_entry.get().strip())
@@ -886,7 +892,10 @@ class PostMoonApp:
             response = model.generate_content(prompt)
             ai_html = (response.text or "").strip()
             if ai_html:
-                self.root.after(0, lambda: self.set_popup_content_text(ai_html))
+                # AI 결과에서 href='#' 또는 href="#"를 보존된 실제 URL로 복원
+                if preserved_url:
+                    ai_html = re.sub(r"""href=['"](#)['"]""", f"href='{preserved_url}'", ai_html)
+                self.root.after(0, lambda h=ai_html: self.set_popup_content_text(h))
         except Exception as e:
             err_str = str(e)
             if "429" in err_str or "quota" in err_str.lower() or "RESOURCE_EXHAUSTED" in err_str:
@@ -1423,11 +1432,22 @@ class PostMoonApp:
         self.root.after(0, self.update_ui_result, title, "\n".join(body).strip())
 
     def update_ui_result(self, title, body):
+        # 기존 팝업에 실제 게시물 URL이 있으면 보존
+        preserved_url = None
+        existing_popup = self.get_popup_content_text()
+        if existing_popup:
+            url_match = re.search(r"<a\s[^>]*href=['\"]([^'\"#][^'\"]*)['\"]", existing_popup)
+            if url_match:
+                preserved_url = url_match.group(1)
+
         self.title_entry.delete(0, tk.END)
         self.title_entry.insert(0, title)
         self.content_text.delete("1.0", tk.END)
         self.content_text.insert("1.0", body)
-        self.set_popup_content_text(self.build_simplified_popup_content(title, body))
+        new_popup = self.build_simplified_popup_content(title, body)
+        if preserved_url:
+            new_popup = re.sub(r"""href=['"](#)['"]""", f"href='{preserved_url}'", new_popup)
+        self.set_popup_content_text(new_popup)
         self.tabview.set("📝  게시글 편집")  # AI 완료 후 게시글 탭으로 자동 전환
 
     def fetch_rhymix_menus_thread(self):
