@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.1.0] - 2026-03-01
+### Added
+- 게시판(mid) 즐겨찾기 기능: 설정 모달에서 ★ 버튼으로 즐겨찾기 등록/해제, 목록 상단 ⭐ 표시
+- 게시판 선택 시 분류 자동 불러오기: 모달에서 게시판 변경 시 해당 게시판의 분류 목록 자동 갱신
+### Removed
+- 프리셋(preset) 관련 UI 제거 (preset_switch, add_preset_btn, clear_preset_btn)
+### Changed
+- 게시판 목록 불러오기 후 즐겨찾기 상태 자동 반영
+
 ## [v2.0.0] - 2026-03-01
 ### Changed
 - 팝업 타이틀바 제거: 타이틀이 팝업 본문 상단(h2)에 통합되어 콘텐츠와 자연스럽게 어우러짐

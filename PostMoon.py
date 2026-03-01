@@ -41,7 +41,7 @@ ctk.set_default_color_theme("blue")  # "blue", "green", "dark-blue"
 class PostMoonApp:
     def __init__(self, root):
         self.root = root
-        self.VERSION = "v2.0.0"
+        self.VERSION = "v2.1.0"
         self.root.title(f"PostMoon - AI Powered Rhymix Uploader {self.VERSION}")
         self.root.geometry("1100x800")
         self.root.minsize(900, 650)
@@ -152,16 +152,10 @@ class PostMoonApp:
         self.api_key_entry = ctk.CTkEntry(hf)
         self.gemini_key_entry = ctk.CTkEntry(hf)
         self.menu_items_map = {}
-        self.auto_apply_preset_on_load = False
         self.mid_entry = ctk.CTkComboBox(hf,
                                          values=["직접 입력하거나 목록을 불러오세요"],
                                          command=self.on_mid_selected)
-        self.preset_switch = ctk.CTkSwitch(hf, text="프리셋 적용", command=self.on_preset_switch)
         self.category_entry = ctk.CTkComboBox(hf, values=["게시판의 분류를 불러오세요"])
-        self.add_preset_btn = ctk.CTkButton(hf, text="➕ 프리셋에 추가",
-                                            command=self.add_current_mid_to_preset)
-        self.clear_preset_btn = ctk.CTkButton(hf, text="🗑 프리셋 초기화",
-                                              command=self.clear_domain_preset)
         self.fetch_mid_btn = ctk.CTkButton(hf, text="🔄 사이트메뉴 불러오기",
                                            command=self.fetch_rhymix_menus_thread)
         self.fetch_cat_btn = ctk.CTkButton(hf, text="🔄 분류 불러오기",
@@ -523,18 +517,49 @@ class PostMoonApp:
         mid_r.grid_columnconfigure(0, weight=1)
         m_mid = ctk.CTkComboBox(mid_r, values=self.mid_entry.cget("values"))
         m_mid.grid(row=0, column=0, sticky="ew", padx=(0, 6))
-        ctk.CTkButton(mid_r, text="🔄 불러오기", width=110,
-                      command=lambda: self._fetch_menus_and_update_modal(m_mid)).grid(row=0, column=1)
 
-        # 프리셋 관리
-        p_row = ctk.CTkFrame(scroll, fg_color="transparent")
-        p_row.grid(row=7, column=0, columnspan=3, sticky="ew", padx=16, pady=(0, 6))
-        m_preset_switch = ctk.CTkSwitch(p_row, text="프리셋 적용", command=self.on_preset_switch)
-        m_preset_switch.pack(side="left", padx=(0, 12))
-        ctk.CTkButton(p_row, text="➕ 프리셋 추가", width=110,
-                      command=self.add_current_mid_to_preset).pack(side="left", padx=(0, 6))
-        ctk.CTkButton(p_row, text="🗑 프리셋 초기화", width=110,
-                      command=self.clear_domain_preset).pack(side="left")
+        # ── ★ 즐겨찾기 토글 버튼 ──────────────────────────────────
+        def _get_modal_pure_mid():
+            raw = m_mid.get()
+            match = re.search(r'\(([^)]+)\)$', raw)
+            return match.group(1).strip() if match else raw.strip()
+
+        def _get_modal_fav_mids():
+            return list(self.profiles.get(m_profile_var.get(), {}).get("favorite_mids", []))
+
+        def _update_star_btn():
+            mid = _get_modal_pure_mid()
+            is_fav = mid in _get_modal_fav_mids()
+            star_btn.configure(
+                text="★",
+                fg_color=("#c8940a", "#9a6f00") if is_fav else ("#666", "#444"),
+                hover_color=("#d4a017", "#b8860b")
+            )
+
+        def _toggle_star():
+            pname = m_profile_var.get()
+            mid = _get_modal_pure_mid()
+            if not mid or mid in ("직접 입력하거나 목록을 불러오세요", "연결된 게시판 메뉴가 없습니다"):
+                return
+            favs = _get_modal_fav_mids()
+            if mid in favs:
+                favs.remove(mid)
+            else:
+                favs.append(mid)
+            if pname not in self.profiles:
+                self.profiles[pname] = {}
+            self.profiles[pname]["favorite_mids"] = favs
+            _update_star_btn()
+            self._rebuild_mid_values_with_favorites(m_mid, pname)
+
+        star_btn = ctk.CTkButton(
+            mid_r, text="★", width=36, command=_toggle_star,
+            fg_color=("#666", "#444"), hover_color=("#d4a017", "#b8860b"),
+            font=ctk.CTkFont(size=16), corner_radius=6
+        )
+        star_btn.grid(row=0, column=1, padx=(0, 6))
+        ctk.CTkButton(mid_r, text="🔄 불러오기", width=110,
+                      command=lambda: self._fetch_menus_and_update_modal(m_mid, _update_star_btn)).grid(row=0, column=2)
 
         # ── 분류 category ─────────────────────────────────────────
         ctk.CTkLabel(scroll, text="분류 category:",
@@ -544,9 +569,46 @@ class PostMoonApp:
         cat_r.grid(row=8, column=1, columnspan=2, sticky="ew", padx=(6, 16), pady=6)
         cat_r.grid_columnconfigure(0, weight=1)
         m_cat = ctk.CTkComboBox(cat_r, values=self.category_entry.cget("values"))
-        m_cat.grid(row=0, column=0, sticky="ew", padx=(0, 6))
-        ctk.CTkButton(cat_r, text="🔄 불러오기", width=110,
-                      command=self.fetch_rhymix_categories_thread).grid(row=0, column=1)
+        m_cat.grid(row=0, column=0, sticky="ew")
+
+        # ── 모달 전용 분류 자동 불러오기 ──────────────────────────────
+        def _fetch_cat_for_modal():
+            api_url = m_entries["Rhymix URL"].get().strip()
+            api_key = m_entries["Rhymix API Key"].get().strip()
+            raw = m_mid.get()
+            match = re.search(r'\(([^)]+)\)$', raw)
+            mid = match.group(1).strip() if match else raw.lstrip('★ ').strip()
+            if not api_url or not api_key or not mid:
+                return
+            if mid in ("직접 입력하거나 목록을 불러오세요", "연결된 게시판 메뉴가 없습니다"):
+                return
+            def _thread():
+                headers = {"Authorization": f"Bearer {api_key}", "X-Api-Key": api_key}
+                payload = {"action": "get_board_categories", "mid": mid}
+                try:
+                    resp = requests.post(api_url, headers=headers, data=payload)
+                    if resp.status_code == 200:
+                        result = self.parse_json_response(resp)
+                        if result.get('error') == 0 and 'categories' in result:
+                            vals = [f"{c['title']} ({c['category_srl']})" for c in result['categories']]
+                            if not vals:
+                                vals = ["분류 없음"]
+                            self.root.after(0, lambda: m_cat.configure(values=vals))
+                            self.root.after(0, lambda: m_cat.set(vals[0]))
+                            # 숨김 위젯도 동기화
+                            self.root.after(0, lambda: self.category_entry.configure(values=vals))
+                            self.root.after(0, lambda: self.category_entry.set(vals[0]))
+                        else:
+                            self.root.after(0, lambda: m_cat.set("분류 없음"))
+                except Exception:
+                    pass
+            threading.Thread(target=_thread, daemon=True).start()
+
+        # 게시판 변경 시 별 상태 + 분류 자동 갱신
+        def _on_mid_change(_):
+            _update_star_btn()
+            _fetch_cat_for_modal()
+        m_mid.configure(command=_on_mid_change)
 
         # ── 프로필 전환 시 폼 채우기 ───────────────────────────────
         def _apply_profile_to_modal(name):
@@ -563,10 +625,10 @@ class PostMoonApp:
                 m_mid.set(p.get("mid", "직접 입력하거나 목록을 불러오세요"))
                 cat_val = p.get("category_srl", "")
                 m_cat.set(str(cat_val) if cat_val else "게시판의 분류를 불러오세요")
-                if p.get("preset_enabled", False):
-                    m_preset_switch.select()
-                else:
-                    m_preset_switch.deselect()
+                _update_star_btn()
+                # URL/Key가 있을 때만 분류 자동 갱신
+                if p.get("api_url") and p.get("api_key"):
+                    self.root.after(100, _fetch_cat_for_modal)
 
         m_profile_combo.configure(command=_apply_profile_to_modal)
         _apply_profile_to_modal(m_profile_var.get())
@@ -587,7 +649,7 @@ class PostMoonApp:
             self.profiles[name]["category_srl"] = (
                 int(_m.group(1)) if _m else (int(cat_raw) if cat_raw.isdigit() else 0)
             )
-            self.profiles[name]["preset_enabled"] = (m_preset_switch.get() == 1)
+            # favorite_mids 는 ★ 버튼 클릭 시 self.profiles 에 즉시 반영됨 (별도 저장 불필요)
             self.current_profile = name
             # 숨김 위젯 동기화
             self.api_url_entry.delete(0, tk.END)
@@ -609,12 +671,25 @@ class PostMoonApp:
             corner_radius=8
         ).grid(row=9, column=0, columnspan=3, sticky="ew", padx=16, pady=(12, 20))
 
-    def _fetch_menus_and_update_modal(self, m_mid_widget):
-        """설정 모달에서 메뉴 목록 불러오기"""
+    def _fetch_menus_and_update_modal(self, m_mid_widget, star_update_cb=None):
+        """설정 모달에서 메뉴 목록 불러오기. 완료 후 star_update_cb() 호출."""
         def _thread():
             self.fetch_rhymix_menus()
             vals = self.mid_entry.cget("values")
-            self.root.after(0, lambda: m_mid_widget.configure(values=vals))
+            def _update():
+                m_mid_widget.configure(values=vals)
+                if vals:
+                    cur_raw = m_mid_widget.get()
+                    m = re.search(r'\(([^)]+)\)$', cur_raw)
+                    cur_mid = m.group(1).strip() if m else cur_raw.lstrip('★ ').strip()
+                    for v in vals:
+                        m2 = re.search(r'\(([^)]+)\)$', v)
+                        if m2 and m2.group(1).strip() == cur_mid:
+                            m_mid_widget.set(v)
+                            break
+                if star_update_cb:
+                    star_update_cb()
+            self.root.after(0, _update)
         threading.Thread(target=_thread, daemon=True).start()
 
     def setup_result_tab(self):
@@ -1572,18 +1647,11 @@ class PostMoonApp:
 
         self.set_popup_content_text('')
 
-        preset = self._get_domain_preset()
-        if profile_data.get('preset_enabled', False):
-            self.preset_switch.select()
-            self.auto_apply_preset_on_load = True
-            if profile_data.get('api_url') and profile_data.get('api_key'):
-                try:
-                    self.fetch_rhymix_menus_thread()
-                except Exception:
-                    pass
-        else:
-            self.preset_switch.deselect()
-            self.auto_apply_preset_on_load = False
+        if profile_data.get('api_url') and profile_data.get('api_key'):
+            try:
+                self.fetch_rhymix_menus_thread()
+            except Exception:
+                pass
 
     def on_profile_change(self, choice):
         if choice:
@@ -1606,7 +1674,6 @@ class PostMoonApp:
                 'mid': self.get_pure_mid(),
                 'gemini_api_key': self.gemini_key_entry.get().strip(),
                 'category_srl': self.get_selected_category_srl(),
-                'preset_enabled': bool(self.preset_switch.get()),
                 'create_popup': 'N',
                 'popup_scope': self.popup_scope_combo.get().strip(),
                 'popup_start_date': '',
@@ -1614,9 +1681,8 @@ class PostMoonApp:
                 'popup_cookie_days': self.popup_cookie_days_entry.get().strip(),
                 'popup_width': self.popup_width_entry.get().strip(),
                 'popup_ai_instruction': self.popup_ai_entry.get().strip(),
-
                 'popup_content': self.get_popup_content_text(),
-                'presets': {}
+                'favorite_mids': []
             }
             self.current_profile = new_name
             self.update_profile_combo()
@@ -1643,7 +1709,6 @@ class PostMoonApp:
             'mid': self.get_pure_mid(),
             'gemini_api_key': self.gemini_key_entry.get().strip(),
             'category_srl': self.get_selected_category_srl(),
-            'preset_enabled': bool(self.preset_switch.get()),
             'create_popup': 'N',
             'popup_scope': self.popup_scope_combo.get().strip(),
             'popup_start_date': '',
@@ -1651,9 +1716,8 @@ class PostMoonApp:
             'popup_cookie_days': self.popup_cookie_days_entry.get().strip(),
             'popup_width': self.popup_width_entry.get().strip(),
             'popup_ai_instruction': self.popup_ai_entry.get().strip(),
-
             'popup_content': self.get_popup_content_text(),
-            'presets': self.profiles.get(self.current_profile, {}).get('presets', {})
+            'favorite_mids': self.profiles.get(self.current_profile, {}).get('favorite_mids', [])
         }
         config = {'profiles': self.profiles, 'last_used': self.current_profile}
         try:
@@ -1895,20 +1959,16 @@ class PostMoonApp:
 
                 if result.get('error') == 0 and 'menu_list' in result:
                     menu_items = result['menu_list']
-                    combo_values = []
-                    preset = self._get_domain_preset()
-                    if bool(self.preset_switch.get()) and preset and preset.get('include_mids'):
-                        include = set(preset['include_mids'])
-                        if desired_mid:
-                            include.add(desired_mid)
-                        for item in menu_items:
-                            self.menu_items_map[item['mid']] = item['item_name']
-                            if item['mid'] in include:
-                                combo_values.append(f"{item['item_name']} ({item['mid']})")
-                    else:
-                        for item in menu_items:
-                            self.menu_items_map[item['mid']] = item['item_name']
-                            combo_values.append(f"{item['item_name']} ({item['mid']})")
+                    fav_mids = set(self.profiles.get(self.current_profile, {}).get('favorite_mids', []))
+                    fav_values = []
+                    normal_values = []
+                    for item in menu_items:
+                        self.menu_items_map[item['mid']] = item['item_name']
+                        if item['mid'] in fav_mids:
+                            fav_values.append(f"★ {item['item_name']} ({item['mid']})")
+                        else:
+                            normal_values.append(f"{item['item_name']} ({item['mid']})")
+                    combo_values = fav_values + normal_values
                     if not combo_values:
                         combo_values = ["연결된 게시판 메뉴가 없습니다"]
 
@@ -1920,14 +1980,9 @@ class PostMoonApp:
                             if menu_mid == desired_mid:
                                 selected_menu = menu_text
                                 break
-                        
+
                     self.root.after(0, lambda: self.mid_entry.configure(values=combo_values))
                     self.root.after(0, lambda: self.mid_entry.set(selected_menu))
-                    if bool(self.preset_switch.get()):
-                        try:
-                            self.apply_domain_preset()
-                        except Exception:
-                            pass
                     self.root.after(0, self.fetch_rhymix_categories_thread)
                 else:
                     messagebox.showerror("실패", "메뉴를 불러오지 못했습니다.")
@@ -1952,79 +2007,59 @@ class PostMoonApp:
         except Exception:
             pass
 
-    def on_preset_switch(self):
-        self.apply_domain_preset()
-        self.save_config()
+    def get_favorite_mids(self):
+        """현재 프로필의 즐겨찾기 mid 목록을 반환합니다."""
+        return list(self.profiles.get(self.current_profile, {}).get('favorite_mids', []))
 
-    def _get_current_domain(self):
-        url = self.api_url_entry.get().strip()
-        try:
-            return urlparse(url).netloc.lower()
-        except:
-            return ""
-
-    def _get_domain_preset(self):
-        profile = self.profiles.get(self.current_profile, {})
-        presets = profile.get('presets', {})
-        domain = self._get_current_domain()
-        return presets.get(domain, {})
-
-    def apply_domain_preset_thread(self):
-        threading.Thread(target=self.apply_domain_preset, daemon=True).start()
-
-    def apply_domain_preset(self):
-        values = list(self.mid_entry.cget("values"))
-        current_mid = self.get_pure_mid()
-        preset = self._get_domain_preset()
-        include = preset.get('include_mids')
-        if not include:
+    def toggle_favorite_mid(self, mid: str):
+        """mid를 즐겨찾기에 추가하거나 제거하고 드롭다운을 재정렬합니다."""
+        if not mid:
             return
-        include_set = set(include)
-        if current_mid:
-            include_set.add(current_mid)
-        filtered = []
-        for v in values:
-            m = re.search(r'\(([^)]+)\)$', v)
-            mid = m.group(1) if m else v
-            if mid in include_set:
-                filtered.append(v)
-        if filtered:
-            selected = filtered[0]
-            if current_mid:
-                for v in filtered:
-                    m = re.search(r'\(([^)]+)\)$', v)
-                    mid = m.group(1) if m else v
-                    if mid == current_mid:
-                        selected = v
-                        break
-            self.root.after(0, lambda: self.mid_entry.configure(values=filtered))
-            self.root.after(0, lambda: self.mid_entry.set(selected))
-
-    def add_current_mid_to_preset(self):
-        mid = self.get_pure_mid()
-        domain = self._get_current_domain()
-        profile = self.profiles.get(self.current_profile, {})
-        presets = profile.get('presets', {})
-        preset = presets.get(domain, {})
-        include = preset.get('include_mids', [])
-        if mid and mid not in include:
-            include.append(mid)
-        preset['include_mids'] = include
-        presets[domain] = preset
-        profile['presets'] = presets
-        self.profiles[self.current_profile] = profile
+        profile = self.profiles.setdefault(self.current_profile, {})
+        favs = list(profile.get('favorite_mids', []))
+        if mid in favs:
+            favs.remove(mid)
+        else:
+            favs.append(mid)
+        profile['favorite_mids'] = favs
+        self._rebuild_mid_values_with_favorites(self.mid_entry, self.current_profile)
         self.save_config()
 
-    def clear_domain_preset(self):
-        domain = self._get_current_domain()
-        profile = self.profiles.get(self.current_profile, {})
-        presets = profile.get('presets', {})
-        if domain in presets:
-            presets[domain] = {'include_mids': []}
-        profile['presets'] = presets
-        self.profiles[self.current_profile] = profile
-        self.preset_switch.deselect()
-        self.save_config()
+    def _rebuild_mid_values_with_favorites(self, combo_widget, profile_name: str):
+        """기존 드롭다운 목록을 즐겨찾기가 상단에 오도록 재정렬합니다."""
+        fav_mids = set(self.profiles.get(profile_name, {}).get('favorite_mids', []))
+        current_values = list(combo_widget.cget('values'))
+        # ★ 접두어가 이미 붙어 있으면 원본 mid 추출
+        stripped = []
+        for v in current_values:
+            clean = v.lstrip('★ ').strip()
+            m = re.search(r'\(([^)]+)\)$', clean)
+            mid = m.group(1).strip() if m else clean
+            name = re.sub(r'\s*\([^)]+\)$', '', clean).strip()
+            stripped.append((mid, name, v))
+        fav_list = []
+        normal_list = []
+        for mid, name, orig in stripped:
+            if mid in fav_mids:
+                fav_list.append(f"★ {name} ({mid})")
+            else:
+                # ★ 접두어 제거하여 저장
+                normal_list.append(f"{name} ({mid})")
+        new_values = fav_list + normal_list
+        if not new_values:
+            return
+        # 현재 선택 mid 유지
+        current_raw = combo_widget.get()
+        cur_m = re.search(r'\(([^)]+)\)$', current_raw)
+        cur_mid = cur_m.group(1).strip() if cur_m else current_raw.lstrip('★ ').strip()
+        selected = new_values[0]
+        for v in new_values:
+            m2 = re.search(r'\(([^)]+)\)$', v)
+            if m2 and m2.group(1).strip() == cur_mid:
+                selected = v
+                break
+        combo_widget.configure(values=new_values)
+        combo_widget.set(selected)
 
     def fetch_rhymix_categories_thread(self):
         threading.Thread(target=self.fetch_rhymix_categories, daemon=True).start()
