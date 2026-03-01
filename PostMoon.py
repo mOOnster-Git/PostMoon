@@ -195,8 +195,13 @@ class PostMoonApp:
             'HTML 세계줄넘기위원회 공지 스타일',
             'HTML KUTF 공식 홈페이지 스타일'
         ], font=ctk.CTkFont(size=12), height=36,
-           fg_color=("#ffffff", "#252836"), border_color=("#c8cad4", "#3d4160"))
+           fg_color=("#ffffff", "#252836"), border_color=("#c8cad4", "#3d4160"),
+           command=self._on_style_select)
         self.style_combo.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=12)
+        self._style_tip_win = None
+        self._style_tip_after = None
+        self.style_combo.bind('<Enter>', self._show_style_tooltip)
+        self.style_combo.bind('<Leave>', self._hide_style_tooltip)
 
         self.ai_btn = ctk.CTkButton(
             ac, text="✨  AI 분석 및 정리 (Gemini)",
@@ -333,6 +338,10 @@ class PostMoonApp:
         self.popup_scope_combo.set("메인 인덱스")  # 기본값: 메인 인덱스
         self.popup_index_module_srl = 0
         self.popup_index_mid = ""
+        self._popup_scope_tip_win = None
+        self._popup_scope_tip_after = None
+        self.popup_scope_combo.bind('<Enter>', self._show_popup_scope_tooltip)
+        self.popup_scope_combo.bind('<Leave>', self._hide_popup_scope_tooltip)
 
         # 날짜 행 - 시작일/종료일 프레임으로 묶어서 버튼을 입력칸 바로 옆에 배치
         date_row = ctk.CTkFrame(sg, fg_color="transparent")
@@ -399,6 +408,11 @@ class PostMoonApp:
         self.popup_ai_entry.grid(row=0, column=0, sticky="ew", padx=(0, 8))
         self.popup_ai_entry.set("간략하고 명확한 3줄 요약 (기본)")
         self.popup_ai_entry.bind("<Return>", lambda event: self.refine_popup_with_ai_thread())
+        self._popup_ai_tip_win = None
+        self._popup_ai_tip_after = None
+        self.popup_ai_entry.configure(command=self._on_popup_ai_select)
+        self.popup_ai_entry.bind('<Enter>', self._show_popup_ai_tooltip)
+        self.popup_ai_entry.bind('<Leave>', self._hide_popup_ai_tooltip)
         self.popup_ai_btn = ctk.CTkButton(
             au, text="✨ 생성", width=80, height=34, corner_radius=7,
             fg_color=("#4b5563", "#374151"), hover_color=("#374151", "#1f2937"),
@@ -613,6 +627,392 @@ class PostMoonApp:
     # ==========================================
     # [데이터_처리_기능_시작]
     # ==========================================
+    # ── 스타일 말풍선 툴팁 ────────────────────────────────────────────
+    def _on_style_select(self, value):
+        if self._style_tip_win and self._style_tip_win.winfo_exists():
+            self._destroy_style_tip()
+            self._do_show_style_tooltip()
+
+    def _show_style_tooltip(self, event=None):
+        if self._style_tip_after:
+            self.root.after_cancel(self._style_tip_after)
+        self._style_tip_after = self.root.after(250, self._do_show_style_tooltip)
+
+    def _hide_style_tooltip(self, event=None):
+        if self._style_tip_after:
+            self.root.after_cancel(self._style_tip_after)
+            self._style_tip_after = None
+        self.root.after(150, self._delayed_hide_tip)
+
+    def _delayed_hide_tip(self):
+        win = self._style_tip_win
+        if not win or not win.winfo_exists():
+            return
+        try:
+            mx = win.winfo_pointerx()
+            my = win.winfo_pointery()
+            wx, wy = win.winfo_rootx(), win.winfo_rooty()
+            ww, wh = win.winfo_width(), win.winfo_height()
+            if wx <= mx <= wx + ww and wy <= my <= wy + wh:
+                return
+        except Exception:
+            pass
+        self._destroy_style_tip()
+
+    def _destroy_style_tip(self):
+        try:
+            if self._style_tip_win and self._style_tip_win.winfo_exists():
+                self._style_tip_win.destroy()
+        except Exception:
+            pass
+        self._style_tip_win = None
+
+    def _do_show_style_tooltip(self):
+        self._destroy_style_tip()
+        style = self.style_combo.get()
+        is_dark = ctk.get_appearance_mode().lower() == 'dark'
+        BG    = '#1e2130' if is_dark else '#ffffff'
+        CARD  = '#252836' if is_dark else '#f5f5f5'
+        FG    = '#e0e0e0' if is_dark else '#222222'
+        MUTED = '#888888' if is_dark else '#666666'
+        BLU   = '#3b5bdb'
+        RED   = '#e05050'
+
+        cx = self.style_combo.winfo_rootx()
+        cy = self.style_combo.winfo_rooty()
+        cw = self.style_combo.winfo_width()
+        ch = self.style_combo.winfo_height()
+        sw = self.root.winfo_screenwidth()
+        WIN_W = 340
+
+        x = cx + cw // 2 - WIN_W // 2
+        if x + WIN_W > sw - 10:
+            x = sw - WIN_W - 10
+        if x < 4:
+            x = 4
+
+        win = tk.Toplevel(self.root)
+        win.overrideredirect(True)
+        win.wm_attributes('-topmost', True)
+        win.configure(bg=BLU)
+        self._style_tip_win = win
+        win.bind('<Leave>', lambda e: self._hide_style_tooltip())
+
+        inner = tk.Frame(win, bg=BG, padx=14, pady=12)
+        inner.pack(fill='both', expand=True, padx=1, pady=1)
+
+        def lbl(parent, text, size=10, bold=False, color=None, anchor='w', pady=(0, 2)):
+            tk.Label(parent, text=text, bg=parent['bg'], fg=color or FG,
+                     font=('Malgun Gothic', size, 'bold' if bold else 'normal'),
+                     anchor=anchor, justify='left', wraplength=WIN_W - 34
+                     ).pack(fill='x', pady=pady)
+
+        def sep(parent, color='#cccccc'):
+            tk.Frame(parent, bg=color, height=1).pack(fill='x', pady=(4, 6))
+
+        def box(parent, bg_color):
+            f = tk.Frame(parent, bg=bg_color, padx=10, pady=8)
+            f.pack(fill='x', pady=(2, 6))
+            return f
+
+        # 헤더
+        hdr = tk.Frame(inner, bg=BG)
+        hdr.pack(fill='x', pady=(0, 6))
+        tk.Label(hdr, text='📋  스타일 미리보기', bg=BG, fg=BLU,
+                 font=('Malgun Gothic', 11, 'bold')).pack(side='left')
+        tk.Label(hdr, text=style, bg=BG, fg=MUTED,
+                 font=('Malgun Gothic', 8)).pack(side='right')
+        sep(inner, BLU)
+
+        if style == '일반 텍스트 (Plain Text)':
+            lbl(inner, '제목이 추출됩니다.', 11, True)
+            sep(inner)
+            bx = box(inner, CARD)
+            lbl(bx, '본문이 깔끔한 텍스트로 정리됩니다.', 10)
+            lbl(bx, 'HTML 태그 없이 순수 텍스트만 출력됩니다.', 10, color=MUTED)
+            lbl(inner, '✦ 텍스트 에디터 · 메모장 붙여넣기에 적합', 9, color=MUTED)
+
+        elif style == 'HTML 보도자료 스타일':
+            tk.Frame(inner, bg=BLU, height=2).pack(fill='x', pady=(0, 3))
+            lbl(inner, '보도자료 제목 (h2)', 12, True)
+            tk.Frame(inner, bg='#cccccc', height=1).pack(fill='x', pady=(0, 6))
+            bx = box(inner, CARD)
+            lbl(bx, '보도자료 형식의 본문 단락이 들어갑니다.', 10)
+            lbl(bx, '두 번째 단락 / 핵심 내용 요약', 10, color=MUTED)
+            lbl(inner, '✦ press-release div 래핑 · h2 + p 구조', 9, color=MUTED)
+
+        elif style == 'HTML 국가대표 시범단 공지 스타일':
+            border_f = tk.Frame(inner, bg='#0056b3', padx=2, pady=2)
+            border_f.pack(fill='x', pady=(0, 8))
+            inner2 = tk.Frame(border_f, bg=BG, padx=10, pady=10)
+            inner2.pack(fill='both')
+            tk.Label(inner2, text='■  공지 제목', bg=BG, fg='#0056b3',
+                     font=('Malgun Gothic', 12, 'bold'), anchor='center', justify='center'
+                     ).pack(fill='x')
+            tk.Frame(inner2, bg='#0056b3', height=1).pack(fill='x', pady=(4, 6))
+            lbl(inner2, '● 일시 및 장소', 10)
+            lbl(inner2, '● 참가 대상', 10)
+            lbl(inner, '✦ 2px 파란 테두리 박스 · 중앙 h2 · 목록', 9, color=MUTED)
+
+        elif style == 'HTML 세계줄넘기위원회 공지 스타일':
+            lbl(inner, '안녕하세요. 내용을 안내드립니다.', 10, color=MUTED)
+            h3_bg = '#eef2fa' if not is_dark else '#1a2540'
+            h3f = tk.Frame(inner, bg=h3_bg)
+            h3f.pack(fill='x', pady=(6, 0))
+            tk.Frame(h3f, bg='#1a3a6e', width=4).pack(side='left', fill='y')
+            tk.Label(h3f, text='  섹션 제목 (h3)', bg=h3_bg, fg='#1a3a6e',
+                     font=('Malgun Gothic', 10, 'bold'), anchor='w', pady=6
+                     ).pack(side='left', fill='x')
+            bx = box(inner, '#fafafa' if not is_dark else CARD)
+            lbl(bx, '■  항목 내용 1', 10)
+            lbl(bx, '■  항목 내용 2', 10)
+            tk.Label(inner, text='세계어린이줄넘기위원회 / 세계줄넘기위원회',
+                     bg=BG, fg=MUTED, font=('Malgun Gothic', 9), anchor='e', justify='right'
+                     ).pack(fill='x', pady=(4, 0))
+            lbl(inner, '✦ 파란 좌측선 h3 · 박스 항목 · 우측 서명', 9, color=MUTED)
+
+        elif style == 'HTML KUTF 공식 홈페이지 스타일':
+            lbl(inner, '게시글 제목 (h2)', 12, True)
+            tk.Frame(inner, bg='#333333', height=2).pack(fill='x', pady=(2, 8))
+            h3f = tk.Frame(inner, bg=BG)
+            h3f.pack(fill='x', pady=(0, 2))
+            tk.Frame(h3f, bg='#333333', width=5).pack(side='left', fill='y')
+            tk.Label(h3f, text='  소제목 (h3)', bg=BG, fg=FG,
+                     font=('Malgun Gothic', 10, 'bold'), anchor='w', pady=4
+                     ).pack(side='left')
+            bx = box(inner, CARD)
+            lbl(bx, '• 항목 1 — 날짜 / 장소', 10)
+            tk.Label(bx, text='• 강조 키워드', bg=bx['bg'], fg=RED,
+                     font=('Malgun Gothic', 10, 'bold'), anchor='w', justify='left'
+                     ).pack(fill='x')
+            lbl(inner, '✦ h2+하단선 · 좌측바 h3 · 박스 · 빨간 강조', 9, color=MUTED)
+
+        win.update_idletasks()
+        WIN_H = win.winfo_reqheight()
+        y = cy + ch + 4
+        if y + WIN_H > self.root.winfo_screenheight() - 40:
+            y = cy - WIN_H - 4
+        win.geometry(f'{WIN_W}x{WIN_H}+{x}+{y}')
+    # ── 스타일 말풍선 툴팁 끝 ─────────────────────────────────────────
+
+    # ── 팝업 노출위치 툴팁 ───────────────────────────────────────────
+    def _show_popup_scope_tooltip(self, event=None):
+        if self._popup_scope_tip_after:
+            self.root.after_cancel(self._popup_scope_tip_after)
+        self._popup_scope_tip_after = self.root.after(250, self._do_show_popup_scope_tooltip)
+
+    def _hide_popup_scope_tooltip(self, event=None):
+        if self._popup_scope_tip_after:
+            self.root.after_cancel(self._popup_scope_tip_after)
+            self._popup_scope_tip_after = None
+        self.root.after(150, self._delayed_hide_popup_scope_tip)
+
+    def _delayed_hide_popup_scope_tip(self):
+        win = self._popup_scope_tip_win
+        if not win or not win.winfo_exists():
+            return
+        try:
+            mx, my = win.winfo_pointerx(), win.winfo_pointery()
+            wx, wy = win.winfo_rootx(), win.winfo_rooty()
+            if wx <= mx <= wx + win.winfo_width() and wy <= my <= wy + win.winfo_height():
+                return
+        except Exception:
+            pass
+        self._destroy_popup_scope_tip()
+
+    def _destroy_popup_scope_tip(self):
+        try:
+            if self._popup_scope_tip_win and self._popup_scope_tip_win.winfo_exists():
+                self._popup_scope_tip_win.destroy()
+        except Exception:
+            pass
+        self._popup_scope_tip_win = None
+
+    def _do_show_popup_scope_tooltip(self):
+        self._destroy_popup_scope_tip()
+        current = self.popup_scope_combo.get().strip()
+        is_dark = ctk.get_appearance_mode().lower() == 'dark'
+        BG    = '#1e2130' if is_dark else '#ffffff'
+        CARD  = '#252836' if is_dark else '#f5f5f5'
+        FG    = '#e0e0e0' if is_dark else '#222222'
+        MUTED = '#888888' if is_dark else '#666666'
+        BLU   = '#3b5bdb'
+        GREEN = '#2e8b57'
+
+        cx = self.popup_scope_combo.winfo_rootx()
+        cy = self.popup_scope_combo.winfo_rooty()
+        cw = self.popup_scope_combo.winfo_width()
+        ch = self.popup_scope_combo.winfo_height()
+        WIN_W = 340
+        x = cx + cw // 2 - WIN_W // 2
+        x = max(4, min(x, self.root.winfo_screenwidth() - WIN_W - 4))
+
+        win = tk.Toplevel(self.root)
+        win.overrideredirect(True)
+        win.wm_attributes('-topmost', True)
+        win.configure(bg=BLU)
+        self._popup_scope_tip_win = win
+        win.bind('<Leave>', lambda e: self._hide_popup_scope_tooltip())
+
+        inner = tk.Frame(win, bg=BG, padx=14, pady=12)
+        inner.pack(fill='both', expand=True, padx=1, pady=1)
+
+        def lbl(parent, text, size=10, bold=False, color=None, anchor='w', pady=(0, 2)):
+            tk.Label(parent, text=text, bg=parent['bg'], fg=color or FG,
+                     font=('Malgun Gothic', size, 'bold' if bold else 'normal'),
+                     anchor=anchor, justify='left', wraplength=WIN_W - 34
+                     ).pack(fill='x', pady=pady)
+
+        def sep(c='#cccccc'):
+            tk.Frame(inner, bg=c, height=1).pack(fill='x', pady=(4, 6))
+
+        def row_box(icon, title, desc, highlight=False):
+            f = tk.Frame(inner, bg=BLU if highlight else CARD, padx=10, pady=8)
+            f.pack(fill='x', pady=(0, 5))
+            title_color = '#ffffff' if highlight else FG
+            desc_color  = '#ddd'    if highlight else MUTED
+            tk.Label(f, text=f'{icon}  {title}', bg=f['bg'], fg=title_color,
+                     font=('Malgun Gothic', 10, 'bold'), anchor='w', justify='left'
+                     ).pack(fill='x')
+            tk.Label(f, text=desc, bg=f['bg'], fg=desc_color,
+                     font=('Malgun Gothic', 9), anchor='w', justify='left', wraplength=WIN_W - 46
+                     ).pack(fill='x', pady=(2, 0))
+
+        # 헤더
+        hdr = tk.Frame(inner, bg=BG)
+        hdr.pack(fill='x', pady=(0, 6))
+        tk.Label(hdr, text='🪟  팝업 노출위치 안내', bg=BG, fg=BLU,
+                 font=('Malgun Gothic', 11, 'bold')).pack(side='left')
+        tk.Label(hdr, text=f'현재: {current}', bg=BG, fg=MUTED,
+                 font=('Malgun Gothic', 9)).pack(side='right')
+        sep(BLU)
+
+        row_box('📌', '현재 게시판',
+                '이 게시글이 등록된 게시판 페이지에서만 팝업이 표시됩니다.',
+                highlight=(current == '현재 게시판'))
+        row_box('🌐', '전체 페이지',
+                '사이트의 모든 페이지에서 팝업이 표시됩니다.',
+                highlight=(current == '전체 페이지'))
+        row_box('🏠', '메인 인덱스',
+                '사이트 메인(홈) 페이지에서만 팝업이 표시됩니다. (기본 권장)',
+                highlight=(current == '메인 인덱스'))
+
+        win.update_idletasks()
+        WIN_H = win.winfo_reqheight()
+        y = cy + ch + 4
+        if y + WIN_H > self.root.winfo_screenheight() - 40:
+            y = cy - WIN_H - 4
+        win.geometry(f'{WIN_W}x{WIN_H}+{x}+{y}')
+    # ── 팝업 노출위치 툴팁 끝 ────────────────────────────────────────
+
+    # ── 팝업 AI지시사항 툴팁 ─────────────────────────────────────────
+    def _on_popup_ai_select(self, value):
+        if self._popup_ai_tip_win and self._popup_ai_tip_win.winfo_exists():
+            self._destroy_popup_ai_tip()
+            self._do_show_popup_ai_tooltip()
+
+    def _show_popup_ai_tooltip(self, event=None):
+        if self._popup_ai_tip_after:
+            self.root.after_cancel(self._popup_ai_tip_after)
+        self._popup_ai_tip_after = self.root.after(250, self._do_show_popup_ai_tooltip)
+
+    def _hide_popup_ai_tooltip(self, event=None):
+        if self._popup_ai_tip_after:
+            self.root.after_cancel(self._popup_ai_tip_after)
+            self._popup_ai_tip_after = None
+        self.root.after(150, self._delayed_hide_popup_ai_tip)
+
+    def _delayed_hide_popup_ai_tip(self):
+        win = self._popup_ai_tip_win
+        if not win or not win.winfo_exists():
+            return
+        try:
+            mx, my = win.winfo_pointerx(), win.winfo_pointery()
+            wx, wy = win.winfo_rootx(), win.winfo_rooty()
+            if wx <= mx <= wx + win.winfo_width() and wy <= my <= wy + win.winfo_height():
+                return
+        except Exception:
+            pass
+        self._destroy_popup_ai_tip()
+
+    def _destroy_popup_ai_tip(self):
+        try:
+            if self._popup_ai_tip_win and self._popup_ai_tip_win.winfo_exists():
+                self._popup_ai_tip_win.destroy()
+        except Exception:
+            pass
+        self._popup_ai_tip_win = None
+
+    def _do_show_popup_ai_tooltip(self):
+        self._destroy_popup_ai_tip()
+        current = self.popup_ai_entry.get().strip()
+        is_dark = ctk.get_appearance_mode().lower() == 'dark'
+        BG    = '#1e2130' if is_dark else '#ffffff'
+        CARD  = '#252836' if is_dark else '#f5f5f5'
+        FG    = '#e0e0e0' if is_dark else '#222222'
+        MUTED = '#888888' if is_dark else '#666666'
+        BLU   = '#3b5bdb'
+
+        cx = self.popup_ai_entry.winfo_rootx()
+        cy = self.popup_ai_entry.winfo_rooty()
+        cw = self.popup_ai_entry.winfo_width()
+        ch = self.popup_ai_entry.winfo_height()
+        WIN_W = 360
+        x = cx + cw // 2 - WIN_W // 2
+        x = max(4, min(x, self.root.winfo_screenwidth() - WIN_W - 4))
+
+        win = tk.Toplevel(self.root)
+        win.overrideredirect(True)
+        win.wm_attributes('-topmost', True)
+        win.configure(bg=BLU)
+        self._popup_ai_tip_win = win
+        win.bind('<Leave>', lambda e: self._hide_popup_ai_tooltip())
+
+        inner = tk.Frame(win, bg=BG, padx=14, pady=12)
+        inner.pack(fill='both', expand=True, padx=1, pady=1)
+
+        def sep(c='#cccccc'):
+            tk.Frame(inner, bg=c, height=1).pack(fill='x', pady=(4, 6))
+
+        def row_box(icon, title, desc, highlight=False):
+            f = tk.Frame(inner, bg=BLU if highlight else CARD, padx=10, pady=8)
+            f.pack(fill='x', pady=(0, 5))
+            tc = '#ffffff' if highlight else FG
+            dc = '#ddd'    if highlight else MUTED
+            tk.Label(f, text=f'{icon}  {title}', bg=f['bg'], fg=tc,
+                     font=('Malgun Gothic', 10, 'bold'), anchor='w', justify='left'
+                     ).pack(fill='x')
+            tk.Label(f, text=desc, bg=f['bg'], fg=dc,
+                     font=('Malgun Gothic', 9), anchor='w', justify='left', wraplength=WIN_W - 46
+                     ).pack(fill='x', pady=(2, 0))
+
+        hdr = tk.Frame(inner, bg=BG)
+        hdr.pack(fill='x', pady=(0, 6))
+        tk.Label(hdr, text='✨  AI 지시사항 안내', bg=BG, fg=BLU,
+                 font=('Malgun Gothic', 11, 'bold')).pack(side='left')
+        sep(BLU)
+
+        row_box('📝', '간략하고 명확한 3줄 요약 (기본)',
+                '핵심 내용 3가지를 간결하게 정리합니다. 대부분의 공지에 적합합니다.',
+                highlight=(current == '간략하고 명확한 3줄 요약 (기본)'))
+        row_box('📅', '행사/일정/장소 강조 안내',
+                '날짜·장소·대상을 중점적으로 추출합니다. 대회·이벤트 공지에 최적.',
+                highlight=(current == '행사/일정/장소 강조 안내'))
+        row_box('📋', '모집 대상/기간/방법 중심 요약',
+                '모집 공고에 최적화된 요약입니다. 지원 기간과 방법을 강조합니다.',
+                highlight=(current == '모집 대상/기간/방법 중심 요약'))
+        row_box('📣', '공지사항 주요 핵심만 알림',
+                '변경·공지 사항의 핵심만 간단히 전달합니다. 짧고 명확한 안내에 적합.',
+                highlight=(current == '공지사항 주요 핵심만 알림'))
+
+        win.update_idletasks()
+        WIN_H = win.winfo_reqheight()
+        y = cy + ch + 4
+        if y + WIN_H > self.root.winfo_screenheight() - 40:
+            y = cy - WIN_H - 4
+        win.geometry(f'{WIN_W}x{WIN_H}+{x}+{y}')
+    # ── 팝업 AI지시사항 툴팁 끝 ──────────────────────────────────────
+
     def bind_context_menu(self, widget):
         try:
             if isinstance(widget, (ctk.CTkEntry, ctk.CTkTextbox, tk.Entry, tk.Text)):
