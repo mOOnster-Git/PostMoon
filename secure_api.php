@@ -617,8 +617,15 @@ try {
                         $popup_args->popup_type = 'html';
                         $popup_args->title = $title;
                         $popup_body_content = $popup_content_input !== '' ? $popup_content_input : (isset($obj->content) ? $obj->content : '');
+                        // href='#' 플레이스홀더를 실제 게시물 URL로 교체
+                        if (strpos($popup_body_content, "href='#'") !== false) {
+                            $popup_body_content = str_replace(
+                                "href='#'",
+                                "href='" . htmlspecialchars($document_url, ENT_QUOTES, 'UTF-8') . "'",
+                                $popup_body_content
+                            );
                         // <a href= 태그가 없는 경우에만 버튼 자동추가
-                        if (strpos($popup_body_content, '<a href=') === false) {
+                        } elseif (strpos($popup_body_content, '<a href=') === false) {
                             $popup_body_content .= $detail_button_html;
                         }
                         $popup_args->content = $popup_body_content;
