@@ -1333,7 +1333,21 @@ class PostMoonApp:
             elif selected_style == 'HTML 국가대표 시범단 공지 스타일':
                 style_instruction = "- Use HTML. Wrap body in <div class='notice-container' style='border: 2px solid #0056b3; padding: 20px; border-radius: 10px;'>. Use <h2 style='color: #0056b3; text-align: center;'>."
             elif selected_style == 'HTML 세계줄넘기위원회 공지 스타일':
-                style_instruction = "- Use HTML. Wrap in <div style='max-width: 800px; padding: 20px;'>. End with a footer signature."
+                style_instruction = """
+                - Use HTML formatting. Write entirely in Korean.
+                - Wrap the entire content in:
+                  <div style='max-width: 760px; margin: 0 auto; padding: 10px 0; font-family: Malgun Gothic, 맑은 고딕, Apple SD Gothic Neo, sans-serif; color: #222; line-height: 1.9; font-size: 15px;'>
+                - Start with a polite introductory paragraph in a <p> tag (e.g. 안녕하세요. ...안내드립니다.).
+                - For each section heading use:
+                  <h3 style='font-size: 15px; font-weight: bold; color: #1a3a6e; border-left: 4px solid #1a3a6e; padding: 6px 0 6px 14px; margin: 32px 0 10px; background: #f0f4fa;'>섹션 제목</h3>
+                - Wrap the content under each heading in:
+                  <div style='padding: 18px 22px; background: #fafafa; border: 1px solid #e2e2e2; border-radius: 4px; margin-bottom: 8px;'>
+                  Use <p style='margin: 0 0 8px;'>■ &nbsp;항목</p> for each list item (last item: margin:0).
+                - Add a closing paragraph with <p style='margin-top: 28px;'>...문의...감사합니다.</p>
+                - End with a right-aligned signature block:
+                  <div style='margin-top: 36px; padding-top: 18px; border-top: 1px solid #ddd; text-align: right; font-size: 14px; color: #444; line-height: 2;'>세계어린이줄넘기위원회<br>세계줄넘기위원회</div>
+                - Do NOT use <h1> or <h2>. No CSS class names. Inline styles only.
+                """
             elif selected_style == 'HTML KUTF 공식 홈페이지 스타일':
                 style_instruction = """
                 - Use HTML formatting.
