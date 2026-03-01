@@ -340,8 +340,8 @@ class PostMoonApp:
         self.popup_index_mid = ""
         self._popup_scope_tip_win = None
         self._popup_scope_tip_after = None
-        self.popup_scope_combo.bind('<Enter>', self._show_popup_scope_tooltip)
-        self.popup_scope_combo.bind('<Leave>', self._hide_popup_scope_tooltip)
+        # CTkSegmentedButton은 bind() 미지원 → 내부 버튼에 개별 바인딩
+        self.root.after(100, self._bind_popup_scope_tooltip)
 
         # 날짜 행 - 시작일/종료일 프레임으로 묶어서 버튼을 입력칸 바로 옆에 배치
         date_row = ctk.CTkFrame(sg, fg_color="transparent")
@@ -796,6 +796,14 @@ class PostMoonApp:
     # ── 스타일 말풍선 툴팁 끝 ─────────────────────────────────────────
 
     # ── 팝업 노출위치 툴팁 ───────────────────────────────────────────
+    def _bind_popup_scope_tooltip(self):
+        """CTkSegmentedButton 내부 버튼에 툴팁 바인딩 (초기화 후 100ms 뒤 실행)"""
+        try:
+            for btn in self.popup_scope_combo._buttons_dict.values():
+                btn.bind('<Enter>', self._show_popup_scope_tooltip)
+                btn.bind('<Leave>', self._hide_popup_scope_tooltip)
+        except Exception:
+            pass
     def _show_popup_scope_tooltip(self, event=None):
         if self._popup_scope_tip_after:
             self.root.after_cancel(self._popup_scope_tip_after)
